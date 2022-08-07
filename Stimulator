@@ -1,0 +1,282 @@
+#dictionaries to map codes with instructions and registers
+import sys
+inst = sys.stdin.read().splitlines()
+mem_list=[]
+pc=0
+cycle=0
+for i in range(0,256):
+    mem_list.append("0000000000000000")
+for i in range(len[inst]):
+    mem_list[i]=inst[i]
+    
+op_mapping={
+
+    "10000":["add","TypeA"],
+    "10001":["sub","TypeA"],
+    "10010":["movimm","TypeB"],
+    "10011":["movreg","TypeC"],
+    "10100":["ld","TypeD"],
+    "10101":["st","TypeD"],
+    "10110":["mul","TypeA"],
+    "10111":["div","TypeC"],
+    "11000":["rs","TypeB"],
+    "11001":["ls","TypeB"],
+    "11010":["xor","TypeA"],
+    "11011":["or","TypeA"],
+    "11100":["and","TypeA"],
+    "11101":["not","TypeC"],
+    "11110":["cmp","TypeC"],
+    "11111":["jmp","TypeE"],
+    "01100":["jlt","TypeE"],
+    "01101":["jgt","TypeE"],
+    "01111":["je","TypeE"],
+    "01010":["hlt","TypeF"]
+
+}
+
+register = {
+
+    "000":"R0",
+    "001":"R1",
+    "010":"R2",
+    "011":"R3",
+    "100":"R4",
+    "101":"R5",
+    "110":"R6",
+    "111":"FLAGS"
+
+    }
+
+register_file={
+
+    "R0":"0000000000000000",
+    "R1":"0000000000000000",
+    "R2":"0000000000000000",
+    "R3":"0000000000000000",
+    "R4":"0000000000000000",
+    "R5":"0000000000000000",
+    "R6":"0000000000000000",
+    "FLAGS":"0000000000000000"
+
+}
+    
+def reset_flag():
+    register_file["FLAGS"]="0000000000000000" 
+
+def btod(a):
+    a=str(a)
+    s=0
+    for i in range(len(a),0,-1):
+        s+=2**(i-1) *int(a[len(a)-i])
+    return s
+
+def dtob(a):
+    b=""
+    while (a!=0):
+        b+=a%2
+        a=a//2
+    return int(b[::-1].zfill(16))
+  
+
+# type A
+def add(a,b,c):
+    d=a+b
+    if d>2*16-1 or d<-(2*16):
+        register_file["FLAGS"]="0000000000001000"
+    else:
+        reset_flag()
+    register_file[c]=str(dtob(d))
+    
+
+
+def sub(a,b,c):
+    d=a-b
+    if d>2*16-1 or d<-(2*16):
+        register_file["FLAGS"]="0000000000001000"
+    else:
+        reset_flag()
+    register_file[c]=str(dtob(d))
+
+def mul(a,b,c):
+    d=a*b
+    if d>2*16-1 or d<-(2*16):
+        register_file["FLAGS"]="0000000000001000"
+    else:
+        reset_flag()
+    register_file[c]=str(dtob(d))
+
+def xor(a,b,c):
+    reset_flag()
+    d=dtob(a^b)
+    register_file[c]=str(dtob(d))
+
+def orr(a,b,c):
+    reset_flag()
+    d=dtob(a|b)
+    register_file[c]=str(dtob(d))
+
+def andd(a,b,c):
+    reset_flag()
+    c=dtob(a&b)
+    register_file[c]=str(dtob(d)) 
+
+# type D
+def load(reg,addr):
+    reset_flag()
+    register_file[reg]="00000000"+mem_list(btod(int(addr)))[8:16]
+
+def store(reg,addr):
+    reset_flag()
+    mem_list(btod(int(addr)))[8:16]=reg[8:16]
+
+# type B
+def movimm(a,imm):
+    reset_flag()
+    register_file[a]=imm
+    
+def rightshift(c,a,b):
+    reset_flag()
+    d=a>>b
+    d=str(dtob(d))
+    register_file[c]=d
+
+def leftshift(c,a,b):
+    reset_flag()
+    d=a<<b
+    d=str(dtob(d))
+    register_file[c]=d
+
+# type C
+def movreg(a,b):
+    reset_flag()
+    register_file[a]=b
+
+def invert(a,b):
+    reset_flag()
+    register_file[b]=str(dtob(~a))
+
+def compare(a,b):
+    if a<b:
+        register_file["FLAGS"]="0000000000000100"
+    elif a>b:
+        register_file["FLAGS"]="0000000000000010"
+    else:
+        register_file["FLAGS"]="0000000000000001"
+     
+
+def divide(a,b):
+    reset_flag()
+    register_file["R0"]=str(dtob(a//b))
+    register_file["R1"]=str(dtob(a%b))
+
+# type E
+def jump(addr):
+    reset_flag()
+    return btod(int(addr))
+    
+def jumpless(addr,pc):
+    if register_file["FLAGS"]=="0000000000000100":
+        reset_flag()
+        return btod(int(addr))
+    else:
+        return pc
+    
+def jumpgreater(addr,pc):
+    if register_file["FLAGS"]=="0000000000000010":
+        reset_flag()
+        return btod(int(addr))
+    else:
+        return pc
+    
+def jumpequal(addr,pc):
+    if register_file["FLAGS"]=="0000000000000001":
+        reset_flag()
+        return btod(int(addr))
+    else:
+        return pc
+        
+while True:
+    i=inst[pc]
+    opcode=i[0:5]
+    k=op_mapping[opcode]
+
+    if k[1]=="TypeA":
+        a=btod(int(register_file[register[i[7:10]]]))
+        b=btod(int(register_file[register[i[10:13]]]))
+        c=register[i[13:16]]
+        if k[0]=="add":
+            add(a,b,c)
+        elif k[0]=="sub":
+            sub(a,b,c)
+        elif k[0]=="mul":
+            mul(a,b,c)
+        elif k[0]=="xor":
+            xor(a,b,c)
+        elif k[0]=="or":
+            orr(a,b,c)
+        elif k[0]=="and":
+            andd(a,b,c)
+
+    elif k[1]=="TypeB":
+        a=register[i[5:8]]
+        b= btod(int(register_file[a]))
+        imm1="00000000"+(i[8:16])
+        imm2=btod(int(i[8:16]))
+        if k[0]=="movimm":
+            movimm(a,imm1)
+        elif k[0]=="ls":
+            leftshift(a,b,imm2)
+        elif k[0]=="rs":
+            rightshift(a,b,imm2)
+
+    elif k[1]=="TypeC":
+        a=register[i[10:13]]
+        e=register[i[13:16]]
+        b=register_file[register[i[13:16]]]
+        c=btod(int(register_file[a]))
+        d=btod(int(b))
+        if k[0]=="movreg":
+            movreg(a,b)
+        elif k[0]=="div":
+            divide(c,d)
+        elif k[0]=="cmp":
+            compare(c,d)
+        elif k[0]=="not":
+            invert(c,e)
+
+    output=(str(dtob(pc)[8:16])+" "+register_file["R0"]+ " "+register_file["R1"]+" "+register_file["R2"]+" "+register_file["R3"]+" "+register_file["R4"]+" "+register_file["R5"]+" "+register_file["R6"]+" "+register_file["FLAGS"])
+    sys.stdout.write(output)
+    pc+=1
+    
+    
+    if k[1]=="TypeE":
+        addr=i[8:16]
+        if k[0]=="jmp":
+            pc=jump(addr)
+        elif k[0]=="jgt":
+            pc=jumpgreater(addr,pc)
+        elif k[0]=="jlt":
+            pc=jumpless(addr,pc)
+        elif k[0]=="je":
+            pc=jumpequal(addr,pc)
+
+    elif k[1]=="TypeF":
+        break
+
+    cycle+=1
+
+for i in mem_list:
+    print(i)
+
+
+    
+import matplotlib.pyplot as plt
+y=[]
+for i in range(0,cycle):
+    y.append(cycle)
+x=[]
+for i in range(0,len(mem_list)):
+    x.append(i)
+
+plt.scatter(x,y)
+plt.show()
